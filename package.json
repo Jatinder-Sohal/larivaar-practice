@@ -8,7 +8,8 @@
     "test": "vitest",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prefetch": "node scripts/prefetch.ts"
   },
   "dependencies": {
     "@sttm/banidb": "^3.0.1",
