@@ -9,19 +9,19 @@ export type Result = {
 /**
  * Word starts the player has to find, as unit indices. Only boundaries between
  * two letter-words count: the line's first word and any word straight after
- * ੴ, ॥ or a digit are obvious, so they're given rather than scored.
+ * ੴ, ॥, a digit or ਰਹਾਉ are obvious, so they're given rather than scored.
  */
 export function targetStarts(line: PracticeLine): number[] {
   return line.words
-    .filter((word, i) => i > 0 && word.alphabetic && line.words[i - 1].alphabetic)
+    .filter((word, i) => i > 0 && word.scored && line.words[i - 1].scored)
     .map(word => word.start)
 }
 
-/** Word starts the player gets for free: the first word, and any word after ੴ/॥/a digit. */
+/** Word starts the player gets for free: the first word, and any word after ੴ/॥/a digit/ਰਹਾਉ. */
 export function givenStarts(line: PracticeLine): Set<number> {
   const given = new Set<number>()
   line.words.forEach((word, i) => {
-    if (word.alphabetic && (i === 0 || !line.words[i - 1].alphabetic)) given.add(word.start)
+    if (word.scored && (i === 0 || !line.words[i - 1].scored)) given.add(word.start)
   })
   return given
 }
@@ -31,7 +31,7 @@ export function tappableUnits(line: PracticeLine): Set<number> {
   const targets = new Set(targetStarts(line))
   const tappable = new Set<number>()
   for (const word of line.words) {
-    if (!word.alphabetic) continue
+    if (!word.scored) continue
     for (let i = word.start; i < word.end; i++) {
       if (i !== word.start || targets.has(i)) tappable.add(i)
     }
@@ -40,40 +40,44 @@ export function tappableUnits(line: PracticeLine): Set<number> {
 }
 
 /**
- * Unit indices where the line currently splits into chunks: the player's taps,
- * the given word starts, both edges of every ੴ/॥/digit token, and the line end.
- */
-export function playerBreaks(line: PracticeLine, tapped: ReadonlySet<number>): Set<number> {
-  const breaks = new Set([...tapped, ...givenStarts(line)])
-  for (const word of line.words) {
-    if (word.alphabetic) continue
-    breaks.add(word.start)
-    breaks.add(word.end)
-  }
-  breaks.add(line.units.length)
-  return breaks
-}
-
-/**
  * Unit indices that always get a space before them during play: both edges of
- * every ੴ/॥/digit token. These are given, so showing them leaks nothing.
+ * every non-scored token (ੴ, ॥, digits, ਰਹਾਉ). These are given, so showing them leaks nothing.
  */
 export function symbolEdges(line: PracticeLine): Set<number> {
   const edges = new Set<number>()
   line.words.forEach((word, i) => {
-    if (i > 0 && (!word.alphabetic || !line.words[i - 1].alphabetic)) edges.add(word.start)
+    if (i > 0 && (!word.scored || !line.words[i - 1].scored)) edges.add(word.start)
   })
   return edges
 }
 
-/** Whether the player split each word exactly: both edges hit, no tap inside. */
-export function wordsRight(line: PracticeLine, tapped: ReadonlySet<number>): boolean[] {
-  const breaks = playerBreaks(line, tapped)
+export type WordStatus = 'found' | 'missed' | 'symbol'
+
+/**
+ * How each word did, judged on its first letter — the thing the player is
+ * asked to tap. Each word is judged on its own, so missing one word's start
+ * never marks its neighbour wrong too. Given words (the first word, or one
+ * straight after ੴ/॥/a digit/ਰਹਾਉ) count as found. ੴ, ॥, digits and the
+ * ਰਹਾਉ pause are 'symbol'.
+ */
+export function wordStatuses(line: PracticeLine, tapped: ReadonlySet<number>): WordStatus[] {
+  const given = givenStarts(line)
   return line.words.map(word => {
-    if (!breaks.has(word.start) || !breaks.has(word.end)) return false
-    for (let i = word.start + 1; i < word.end; i++) if (breaks.has(i)) return false
-    return true
+    if (!word.scored) return 'symbol'
+    return given.has(word.start) || tapped.has(word.start) ? 'found' : 'missed'
   })
+}
+
+/** One checked line: words found out of the line's words, plus wrong taps. */
+export type Tally = { found: number; total: number; wrong: number }
+
+export function tallyTaps(line: PracticeLine, tapped: ReadonlySet<number>): Tally {
+  const statuses = wordStatuses(line, tapped)
+  return {
+    found: statuses.filter(s => s === 'found').length,
+    total: statuses.filter(s => s !== 'symbol').length,
+    wrong: scoreTaps(line, tapped).wrong.length,
+  }
 }
 
 export function scoreTaps(line: PracticeLine, tapped: ReadonlySet<number>): Result {

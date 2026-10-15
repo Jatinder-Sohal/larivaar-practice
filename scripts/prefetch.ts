@@ -21,7 +21,10 @@ type AngResponse = {
     pageNo: number
     verse: { unicode: string }
     larivaar: { unicode: string }
-    translation: { en?: { ssk?: string | null } }
+    translation: {
+      en?: { ssk?: string | null }
+      pu?: { pss?: { unicode?: string | null } } // padarth: "word = meaning।" for the harder words
+    }
     writer: { writerId: number | null }
     raag: { raagId: number }
   }[]
@@ -61,6 +64,7 @@ for (let ang = FIRST_ANG; ang <= LAST_ANG; ang++) {
       units,
       words,
       translation: line.translation.en?.ssk ?? '',
+      padarth: line.translation.pu?.pss?.unicode ?? '',
       isHeading: line.writer.writerId == null,
     })
     kept++
@@ -81,6 +85,7 @@ const longestUnit = lines
 console.log(`
 Wrote ${OUT_FILE}
   lines:    ${lines.length} (${lines.filter(l => l.isHeading).length} headings)
+  padarth:  ${lines.filter(l => !l.isHeading && l.padarth).length} of ${lines.filter(l => !l.isHeading).length} non-heading lines
   shabads:  ${new Set(lines.map(l => l.shabadId)).size}
   size:     ${(Buffer.byteLength(json) / 1024).toFixed(0)} KB
   longest tap unit: ${longestUnit} (${[...longestUnit].length} codepoints)`)

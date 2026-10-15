@@ -29,9 +29,9 @@ describe('segmentLine', () => {
     expect(segmentLine(spaced).larivaar).toBe(expected)
   })
 
-  it('marks ੴ and ॥ as non-alphabetic', () => {
+  it('marks ੴ and ॥ as non-scored', () => {
     const { words } = segmentLine(lines[0][0])
-    expect(words.filter(w => !w.alphabetic).map(w => w.text)).toEqual(['ੴ', '॥'])
+    expect(words.filter(w => !w.scored).map(w => w.text)).toEqual(['ੴ', '॥'])
   })
 
   it('measures ਪ੍ਰਸਾਦਿ as 3 tap units', () => {
@@ -39,8 +39,19 @@ describe('segmentLine', () => {
     expect(word.end - word.start).toBe(3)
   })
 
-  it('marks verse numbers and the closing ॥ as non-alphabetic', () => {
+  it('marks verse numbers, the ਰਹਾਉ pause and the closing ॥ as non-scored', () => {
     const { words } = segmentLine(lines[3][0])
-    expect(words.filter(w => !w.alphabetic).map(w => w.text)).toEqual(['॥੧॥', '॥'])
+    expect(words.filter(w => !w.scored).map(w => w.text)).toEqual(['॥੧॥', 'ਰਹਾਉ', '॥'])
+  })
+
+  it('marks "ਰਹਾਉ ਦੂਜਾ" (second pause) as non-scored', () => {
+    const { words } = segmentLine('ਹੁਕਮੁ ਪਛਾਣਿ ਤਾ ਖਸਮੈ ਮਿਲਣਾ ॥੧॥ ਰਹਾਉ ਦੂਜਾ ॥')
+    expect(words.filter(w => !w.scored).map(w => w.text)).toEqual(['॥੧॥', 'ਰਹਾਉ', 'ਦੂਜਾ', '॥'])
+  })
+
+  it('keeps ਰਹਾਉ as an ordinary word when it follows another word', () => {
+    // "dwell in truth" — ਰਹਾਉ is part of the reading here, not the pause marker
+    const { words } = segmentLine('ਭਾਈ ਰੇ ਗੁਰਮਤਿ ਸਾਚਿ ਰਹਾਉ ॥')
+    expect(words.find(w => w.text === 'ਰਹਾਉ')!.scored).toBe(true)
   })
 })

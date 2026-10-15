@@ -50,10 +50,25 @@ export function segmentLine(spaced: string): {
       text,
       start: units.length,
       end: units.length + wordUnits.length,
-      alphabetic: isGurmukhiLetter(text.codePointAt(0)!),
+      scored: isGurmukhiLetter(text.codePointAt(0)!),
     })
     units.push(...wordUnits)
   }
 
+  markPauses(words)
   return { larivaar: units.join(''), units, words }
+}
+
+/**
+ * ਰਹਾਉ straight after ॥ (as in "॥੧॥ ਰਹਾਉ ॥") is the "pause" marker, and so
+ * is the ਦੂਜਾ of "ਰਹਾਉ ਦੂਜਾ" (second pause) — treated like ॥: not scored.
+ * Elsewhere ਰਹਾਉ is an ordinary word ("ਸਾਚਿ ਰਹਾਉ", dwell in truth) and stays
+ * playable.
+ */
+function markPauses(words: Word[]) {
+  words.forEach((word, i) => {
+    const prev = words[i - 1]
+    if (word.text === 'ਰਹਾਉ' && (!prev || !prev.scored)) word.scored = false
+    else if (word.text === 'ਦੂਜਾ' && prev?.text === 'ਰਹਾਉ' && !prev.scored) word.scored = false
+  })
 }

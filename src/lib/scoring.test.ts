@@ -1,10 +1,18 @@
 import { describe, it, expect } from 'vitest'
 import { segmentLine } from './segment.ts'
-import { targetStarts, tappableUnits, scoreTaps, playerBreaks, wordsRight, symbolEdges, givenStarts } from './scoring.ts'
+import {
+  targetStarts,
+  tappableUnits,
+  scoreTaps,
+  symbolEdges,
+  givenStarts,
+  wordStatuses,
+  tallyTaps,
+} from './scoring.ts'
 import type { PracticeLine } from './types.ts'
 
 function lineFrom(spaced: string): PracticeLine {
-  return { verseId: 1, shabadId: 1, ang: 14, spaced, translation: '', isHeading: false, ...segmentLine(spaced) }
+  return { verseId: 1, shabadId: 1, ang: 14, spaced, translation: '', padarth: '', isHeading: false, ...segmentLine(spaced) }
 }
 
 // units: ਮੋ ਤੀ | ਤ | ਮੰ ਦ ਰ | ਊ ਸ ਰ ਹਿ | ਰ ਤ ਨੀ | ਤ | ਹੋ ਹਿ | ਜ ੜਾ ਉ | ॥
@@ -43,26 +51,20 @@ describe('tappableUnits', () => {
   })
 })
 
-describe('playerBreaks', () => {
-  it('is one chunk plus the ॥ before any taps', () => {
-    expect([...playerBreaks(moti, new Set())].sort((a, b) => a - b)).toEqual([0, 19, 20])
-  })
-
-  it('adds the player taps', () => {
-    expect([...playerBreaks(moti, new Set([2, 5]))].sort((a, b) => a - b)).toEqual([0, 2, 5, 19, 20])
-  })
-})
-
 describe('givenStarts', () => {
   it('gives only the first word on a plain line', () => {
     expect([...givenStarts(moti)]).toEqual([0])
   })
 
   it('gives the word after ੴ and after a verse number', () => {
-    const line = lineFrom('ਨਾਹੀ ਥਾਉ ॥੧॥ ਰਹਾਉ ॥')
-    const rahau = line.words.find(w => w.text === 'ਰਹਾਉ')!
-    expect([...givenStarts(line)]).toEqual([0, rahau.start])
+    const line = lineFrom('ਨਾਹੀ ਥਾਉ ॥੧॥ ਮੈ ਆਪਣਾ ॥')
+    const mai = line.words.find(w => w.text === 'ਮੈ')!
+    expect([...givenStarts(line)]).toEqual([0, mai.start])
     expect([...givenStarts(lineFrom('ੴ ਸਤਿ ਨਾਮੁ ॥'))]).toEqual([1])
+  })
+
+  it('does not give the ਰਹਾਉ pause — it is a marker, not a word to play', () => {
+    expect([...givenStarts(lineFrom('ਨਾਹੀ ਥਾਉ ॥੧॥ ਰਹਾਉ ॥'))]).toEqual([0])
   })
 
   it('never overlaps the targets', () => {
@@ -87,18 +89,40 @@ describe('symbolEdges', () => {
   })
 })
 
-describe('wordsRight', () => {
-  it('marks a word right only when both edges are hit and nothing inside', () => {
-    // ਮੋਤੀ, ਤ and ਊਸਰਹਿ are cleanly split; the wrong tap at 5 breaks ਮੰਦਰ
-    expect(wordsRight(moti, new Set([2, 3, 5, 6, 10])).slice(0, 4)).toEqual([true, true, false, true])
+describe('wordStatuses', () => {
+  it('judges each word only on its own first letter', () => {
+    // The user's real attempt on Ang 81: found ਕਿ and ਪ੍ਰ, but tapped ਪਾ instead
+    // of ਗੋ and ਰੇ instead of ਮੇ. ਕਿਰਪਾਲ and ਪ੍ਰਭ must still count as found.
+    const line = lineFrom('ਭਏ ਕਿਰਪਾਲ ਗੋਪਾਲ ਪ੍ਰਭ ਮੇਰੇ ਸਾਧਸੰਗਤਿ ਨਿਧਿ ਮਾਨਿਆ ॥')
+    // units: ਭ ਏ | ਕਿ ਰ ਪਾ ਲ | ਗੋ ਪਾ ਲ | ਪ੍ਰ ਭ | ਮੇ ਰੇ | ਸਾ ਧ ਸੰ ਗ ਤਿ | ਨਿ ਧਿ | ਮਾ ਨਿ ਆ | ॥
+    //        0 1    2  3 4  5    6  7  8   9  10   11 12   13 14 15 16 17  18 19   20 21 22 23
+    const tapped = new Set([1, 2, 7, 9, 12, 15, 18, 20])
+    expect(wordStatuses(line, tapped)).toEqual([
+      'found', // ਭਏ — given, so it counts as found
+      'found', // ਕਿਰਪਾਲ
+      'missed', // ਗੋਪਾਲ
+      'found', // ਪ੍ਰਭ
+      'missed', // ਮੇਰੇ
+      'missed', // ਸਾਧਸੰਗਤਿ
+      'found', // ਨਿਧਿ
+      'found', // ਮਾਨਿਆ
+      'symbol', // ॥
+    ])
   })
 
-  it('marks every word right when all targets are tapped', () => {
-    expect(wordsRight(moti, new Set(targetStarts(moti))).every(Boolean)).toBe(true)
+  it('marks ੴ and ਰਹਾਉ as symbols and the given word after ੴ as found', () => {
+    const line = lineFrom('ੴ ਸਤਿ ਨਾਮੁ ॥੧॥ ਰਹਾਉ ॥')
+    expect(wordStatuses(line, new Set())).toEqual(['symbol', 'found', 'missed', 'symbol', 'symbol', 'symbol'])
   })
+})
 
-  it('marks the last word wrong when the player missed its start', () => {
-    expect(wordsRight(moti, new Set([2, 3, 6, 10, 13, 14]))[7]).toBe(false) // ਜੜਾਉ
+describe('tallyTaps', () => {
+  it('counts given words as found, so the score matches the green words', () => {
+    // Ang 72: ਤਿਨ is given; ਅੰਤਰਿ and ਸਬਦੁ found; ਵਸਾਇਆ missed; one wrong tap on ਦੁ
+    const line = lineFrom('ਤਿਨ ਅੰਤਰਿ ਸਬਦੁ ਵਸਾਇਆ ॥')
+    const start = (text: string) => line.words.find(w => w.text === text)!.start
+    const tapped = new Set([start('ਅੰਤਰਿ'), start('ਸਬਦੁ'), start('ਸਬਦੁ') + 2])
+    expect(tallyTaps(line, tapped)).toEqual({ found: 3, total: 4, wrong: 1 })
   })
 })
 

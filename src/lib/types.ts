@@ -2,7 +2,7 @@ export type Word = {
   text: string // the word as written, with its matras
   start: number // index of the word's first unit in PracticeLine.units
   end: number // exclusive end index in PracticeLine.units
-  alphabetic: boolean // false for ੴ, ॥, digits — auto-marked, not scored
+  scored: boolean // false for ੴ, ॥, digits and the ਰਹਾਉ pause marker — shown grey, not scored
 }
 
 export type PracticeLine = {
@@ -14,5 +14,6 @@ export type PracticeLine = {
   units: string[] // tap units of the larivaar line, in order
   words: Word[]
   translation: string
+  padarth: string // raw "word = meaning।" text from BaniDB, '' if none — see parsePadarth
   isHeading: boolean
 }
