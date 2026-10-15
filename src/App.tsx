@@ -1,28 +1,27 @@
+import { useState } from 'react'
+import data from './data/siri-raag.json'
+import type { PracticeLine } from './lib/types.ts'
+import { targetStarts } from './lib/scoring.ts'
+import { LineTapper } from './components/LineTapper.tsx'
+
+// Headings and lines with nothing to find (e.g. a single word) aren't worth playing.
+const lines = (data as PracticeLine[]).filter(line => !line.isHeading && targetStarts(line).length > 0)
+
 function App() {
+  const [index, setIndex] = useState(0)
+  const line = lines[index]
+
   return (
-    <div className="min-h-screen bg-white p-6 flex flex-col gap-8">
-      <h1 className="text-2xl font-bold">Gurmukhi rendering test</h1>
+    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 bg-white p-4 text-gray-900">
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h1 className="text-lg font-semibold">Larivaar practice</h1>
+        <span className="text-sm text-gray-500">
+          Ang {line.ang} · {index + 1} / {lines.length}
+        </span>
+      </header>
 
-      <section className="flex flex-col gap-2">
-        <div className="text-xs uppercase tracking-wide text-gray-500">Spaced (ground truth)</div>
-        <p className="text-3xl leading-relaxed">
-          ੴ ਸਤਿ ਨਾਮੁ ਕਰਤਾ ਪੁਰਖੁ ਨਿਰਭਉ ਨਿਰਵੈਰੁ ਅਕਾਲ ਮੂਰਤਿ ਅਜੂਨੀ ਸੈਭੰ ਗੁਰ ਪ੍ਰਸਾਦਿ ॥
-        </p>
-      </section>
-
-      <section className="flex flex-col gap-2">
-        <div className="text-xs uppercase tracking-wide text-gray-500">Larivaar (no spaces)</div>
-        <p className="text-3xl leading-relaxed">
-          ੴਸਤਿਨਾਮੁਕਰਤਾਪੁਰਖੁਨਿਰਭਉਨਿਰਵੈਰੁਅਕਾਲਮੂਰਤਿਅਜੂਨੀਸੈਭੰਗੁਰਪ੍ਰਸਾਦਿ॥
-        </p>
-      </section>
-
-      <section className="flex flex-col gap-2">
-        <div className="text-xs uppercase tracking-wide text-gray-500">Siri Raag, Ang 14, line 3</div>
-        <p className="text-3xl leading-relaxed">ਮੋਤੀ ਤ ਮੰਦਰ ਊਸਰਹਿ ਰਤਨੀ ਤ ਹੋਹਿ ਜੜਾਉ ॥</p>
-        <p className="text-3xl leading-relaxed">ਮੋਤੀਤਮੰਦਰਊਸਰਹਿਰਤਨੀਤਹੋਹਿਜੜਾਉ॥</p>
-      </section>
-    </div>
+      <LineTapper key={line.verseId} line={line} onNext={() => setIndex(i => (i + 1) % lines.length)} />
+    </main>
   )
 }
 
